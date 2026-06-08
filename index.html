@@ -28,8 +28,7 @@ body {
   padding: 25px;
   text-align: center;
 }
-.header h1 { font-size: 32px; margin-bottom: 5px; }
-.header p { opacity: 0.95; font-size: 15px; }
+.header h1 { font-size: 32px; }
 .chat {
   height: 450px;
   overflow-y: auto;
@@ -42,26 +41,20 @@ body {
   border-radius: 15px;
   max-width: 85%;
   line-height: 1.6;
-  animation: fadeIn 0.3s;
 }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } }
 .user {
   background: #f5576c;
   color: white;
   margin-left: auto;
-  border-bottom-right-radius: 5px;
 }
 .bot {
   background: white;
   border: 2px solid #f093fb;
-  border-bottom-left-radius: 5px;
 }
 .bot::before { content: "🥭 MANGUITO: "; font-weight: bold; color: #f5576c; }
 .input-area {
   display: flex;
   padding: 18px;
-  background: white;
-  border-top: 2px solid #f093fb;
   gap: 12px;
 }
 .input-area input {
@@ -69,10 +62,8 @@ body {
   padding: 14px;
   border: 2px solid #f093fb;
   border-radius: 12px;
-  outline: none;
   font-size: 16px;
 }
-.input-area input:focus { border-color: #f5576c; }
 .input-area button {
   padding: 14px 28px;
   background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
@@ -81,23 +72,22 @@ body {
   border-radius: 12px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 16px;
 }
-.input-area button:hover { transform: scale(1.05); }
+.loading { opacity: 0.6; }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
     <h1>🥭 MANGUITO - IA</h1>
-    <p>Respondo TODO como ChatGPT, Dola, Gemini y más 😎</p>
+    <p>IA real - Respondo TODO con respuestas ciertas</p>
   </div>
   <div class="chat" id="chat">
-    <div class="msg bot">Hola humano 👋 Soy MANGUITO-IA, tu mango inteligente. Pregúntame lo que sea: mate, código, tarea, chisme, filosofía... Le entro a todo 🔥</div>
+    <div class="msg bot">Hola! Soy MANGUITO-IA con IA real. Pregúntame mates, código, tarea, lo que sea. Respondo con datos reales 🔥</div>
   </div>
   <div class="input-area">
-    <input type="text" id="input" placeholder="Pregúntale algo a MANGUITO..." onkeypress="if(event.key==='Enter') send()">
-    <button onclick="send()">Enviar 🥭</button>
+    <input type="text" id="input" placeholder="Pregúntame cualquier cosa..." onkeypress="if(event.key==='Enter') send()">
+    <button onclick="send()">Enviar</button>
   </div>
 </div>
 
@@ -111,47 +101,33 @@ function addMsg(text, type) {
   div.innerHTML = text.replace(/\n/g, '<br>');
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+  return div;
 }
 
-function manguitoBrain(pregunta) {
-  pregunta = pregunta.toLowerCase();
-  
-  // Respuestas tipo ChatGPT/Gemini/Dola
-  if(pregunta.includes('hola') || pregunta.includes('qué tal')) {
-    return "¡Epaaa! 👋 Aquí MANGUITO-IA reportándose. ¿Qué tienes en mente hoy?";
-  }
-  if(pregunta.includes('qué eres') || pregunta.includes('quién eres')) {
-    return "Soy MANGUITO-IA 🥭 Tu IA personal. Piensa en mí como una mezcla de ChatGPT + Gemini + Dola, pero con sabor a mango. Puedo explicar, programar, dar ideas, hacer chistes... lo que pidas.";
-  }
-  if(pregunta.includes('programa') || pregunta.includes('código')) {
-    return "Dale, programamos 🔥 Dime en qué lenguaje: Python, JS, HTML, C++... Te armo el código completo con explicación paso a paso.";
-  }
-  if(pregunta.includes('tarea') || pregunta.includes('explica')) {
-    return "Pa' eso estoy. Mándame la tarea/pregunta y te la explico fácil, sin rodeos. Con ejemplos y todo pa' que entiendas 100%.";
-  }
-  if(pregunta.includes('chiste') || pregunta.includes('risa')) {
-    return "Va uno: ¿Qué le dice un mango a otro mango? 🥭\n\n¡Qué mango de ver! JAJA\n¿Quieres otro?";
-  }
-  if(pregunta.includes('gracias')) {
-    return "De nada pata 🙌 Pa' eso estoy MANGUITO-IA. Si necesitas algo más, ya sabes.";
-  }
-  
-  // Respuesta genérica tipo ChatGPT
-  return `Buena pregunta 🤔\n\nMira, sobre eso te puedo decir que depende del contexto. Pero en general:\n\n1. **Primero**: Hay que entender bien qué necesitas\n2. **Segundo**: Te doy la respuesta directa + explicación\n3. **Tercero**: Si quieres profundizo más\nDime si quieres que desarrolle algún punto más a detalle y le damos 🔥\n\n¿Te sirvió MANGUITO-IA?`;
-}
-
-function send() {
+async function send() {
   const text = input.value.trim();
   if(!text) return;
-  
+
   addMsg(text, 'user');
   input.value = '';
-  
-  // "Pensando..." 
-  setTimeout(() => {
-    const resp = manguitoBrain(text);
-    addMsg(resp, 'bot');
-  }, 600);
+
+  const loadingMsg = addMsg("Pensando... 🥭", 'bot loading');
+
+  try {
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: text })
+    });
+
+    const data = await response.json();
+    loadingMsg.remove();
+    addMsg(data.text, 'bot');
+
+  } catch(e) {
+    loadingMsg.remove();
+    addMsg("Error pata. Configura la API Key en Vercel", 'bot');
+  }
 }
 </script>
 </body>
