@@ -1,13 +1,23 @@
 export default async function handler(req, res) {
+  // Solo permitir POST
+  if (req.method!== 'POST') {
+    return res.status(405).json({ text: "Solo POST" });
+  }
+
   const API_KEY = process.env.GEMINI_API_KEY;
-  const BASE_URL = process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1';
 
   if (!API_KEY) {
-    return res.status(500).json({ text: "Error: GEMINI_API_KEY no configurada" });
+    return res.status(500).json({ text: "❌ Error: GEMINI_API_KEY no configurada en Vercel" });
+  }
+
+  const userPrompt = req.body.prompt || req.body.message;
+
+  if (!userPrompt) {
+    return res.status(400).json({ text: "❌ Error: No enviaste pregunta" });
   }
 
   try {
-    const response = await fetch(`${BASE_URL}/chat/completions`, {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -18,27 +28,31 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'google/gemini-2.0-flash-exp:free',
         messages: [{
+          role: 'system',
+          content: 'Eres MANGUITO-IA. Responde TODO directo, correcto y verificado. Si es matemática calcula bien y muestra pasos. Si es código da código funcional. Si es tarea explica fácil. Sé breve.'
+        },{
           role: 'user',
-          content: `Eres MANGUITO-IA. Responde directo y correcto. Pregunta: ${req.body.prompt}`
+          content: userPrompt
         }]
       })
     });
 
     const data = await response.json();
 
-    // Si hay error de OpenRouter, lo mostramos
+    // Si OpenRouter devuelve error
     if (data.error) {
-      return res.status(500).json({ text: "Error OpenRouter: " + data.error.message });
+      return res.status(500).json({ text: `❌ Error OpenRouter: ${data.error.message}` });
     }
 
-    if (!data.choices ||!data.choices[0]) {
-      return res.status(500).json({ text: "Error: Respuesta vacía de OpenRouter. Data: " + JSON.stringify(data) });
+    // Si no hay respuesta
+    if (!data.choices ||!data.choices[0] ||!data.choices[0].message) {
+      return res.status(500).json({ text: `❌ Respuesta vacía. Debug: ${JSON.stringify(data)}` });
     }
 
     const text = data.choices[0].message.content;
-    res.json({ text });
+    res.status(200).json({ text });
 
   } catch(e) {
-    res.status(500).json({ text: "Error conectando: " + e.message });
+    res.status(500).json({ text: `❌ Error de conexión: ${e.message}` });
   }
 }
