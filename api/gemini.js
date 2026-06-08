@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Solo permitir POST
   if (req.method!== 'POST') {
     return res.status(405).json({ text: "Solo POST" });
   }
@@ -7,11 +6,10 @@ export default async function handler(req, res) {
   const API_KEY = process.env.GEMINI_API_KEY;
 
   if (!API_KEY) {
-    return res.status(500).json({ text: "❌ Error: GEMINI_API_KEY no configurada en Vercel" });
+    return res.status(500).json({ text: "❌ Error: GEMINI_API_KEY no configurada" });
   }
 
   const userPrompt = req.body.prompt || req.body.message;
-
   if (!userPrompt) {
     return res.status(400).json({ text: "❌ Error: No enviaste pregunta" });
   }
@@ -26,10 +24,10 @@ export default async function handler(req, res) {
         'X-Title': 'Manguito IA'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',
+        model: 'meta-llama/llama-3.1-8b-instruct:free', // ← MODELO QUE SÍ FUNCIONA
         messages: [{
           role: 'system',
-          content: 'Eres MANGUITO-IA. Responde TODO directo, correcto y verificado. Si es matemática calcula bien y muestra pasos. Si es código da código funcional. Si es tarea explica fácil. Sé breve.'
+          content: 'Eres MANGUITO-IA. Responde TODO directo, correcto y verificado. Si es matemática calcula bien y muestra pasos. Sé breve.'
         },{
           role: 'user',
           content: userPrompt
@@ -38,21 +36,16 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-
-    // Si OpenRouter devuelve error
     if (data.error) {
       return res.status(500).json({ text: `❌ Error OpenRouter: ${data.error.message}` });
     }
-
-    // Si no hay respuesta
-    if (!data.choices ||!data.choices[0] ||!data.choices[0].message) {
-      return res.status(500).json({ text: `❌ Respuesta vacía. Debug: ${JSON.stringify(data)}` });
+    if (!data.choices ||!data.choices[0]) {
+      return res.status(500).json({ text: `❌ Respuesta vacía` });
     }
 
-    const text = data.choices[0].message.content;
-    res.status(200).json({ text });
+    res.status(200).json({ text: data.choices[0].message.content });
 
   } catch(e) {
-    res.status(500).json({ text: `❌ Error de conexión: ${e.message}` });
+    res.status(500).json({ text: `❌ Error: ${e.message}` });
   }
 }
